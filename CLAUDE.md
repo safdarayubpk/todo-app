@@ -208,3 +208,10 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+## Active Technologies
+- Python 3.13+ (managed with UV) + None (pure standard library: dataclasses, typing) (001-console-todo-app)
+- In-memory (Python list of Task dataclass instances) (001-console-todo-app)
+
+## Recent Changes
+- 001-console-todo-app: Added Python 3.13+ (managed with UV) + None (pure standard library: dataclasses, typing)
