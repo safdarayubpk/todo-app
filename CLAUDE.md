@@ -212,6 +212,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 ## Active Technologies
 - Python 3.13+ (managed with UV) + None (pure standard library: dataclasses, typing) (001-console-todo-app)
 - In-memory (Python list of Task dataclass instances) (001-console-todo-app)
+- Python 3.11+ (backend), TypeScript 5.x (frontend) + FastAPI, SQLModel, Better Auth, Next.js 15, Tailwind CSS (002-fullstack-web-app)
+- Neon PostgreSQL (serverless, async via asyncpg) (002-fullstack-web-app)
 
 ## Recent Changes
 - 001-console-todo-app: Added Python 3.13+ (managed with UV) + None (pure standard library: dataclasses, typing)
