@@ -58,3 +58,20 @@ htmlcov/
 *.tmp
 *.temp
 .mcp.json
+
+# Node.js / Next.js (Frontend)
+node_modules/
+.next/
+out/
+.turbo/
+next-env.d.ts
+
+# Package manager locks (keep one, ignore others if needed)
+# yarn.lock
+# pnpm-lock.yaml
+
+# Next.js build output
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
