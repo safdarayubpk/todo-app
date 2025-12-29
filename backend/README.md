@@ -27,3 +27,4 @@ Set these in Hugging Face Space secrets:
 - `DATABASE_URL` - Neon PostgreSQL connection string (with +asyncpg)
 - `BETTER_AUTH_URL` - Frontend URL for JWKS verification
 - `CORS_ORIGINS` - Allowed CORS origins
+# Trigger rebuild 1766984772
