@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Build version: Force rebuild
+ARG BUILD_VERSION=2
+
 WORKDIR /app
 
 # Install system dependencies
@@ -23,7 +26,7 @@ RUN pip install --no-cache-dir \
     "python-dotenv>=1.0.0" \
     "greenlet>=3.0.0"
 
-# Expose port 7860 (Hugging Face default)
+# Expose Hugging Face default port
 EXPOSE 7860
 
 # Run the application
