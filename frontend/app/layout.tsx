@@ -22,6 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* OpenAI ChatKit Web Component */}
+        <script src="https://cdn.openai.com/chatkit/chatkit.js" async />
+      </head>
       <body className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         <ToastProvider>{children}</ToastProvider>
       </body>

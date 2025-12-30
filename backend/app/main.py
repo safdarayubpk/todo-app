@@ -11,6 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import create_db_and_tables, engine
 from app.schemas import HealthResponse
 
+# Import models to register them with SQLModel before creating tables
+# All models now exported from app.models package
+from app.models import Task, Conversation, Message  # noqa: F401
+
 load_dotenv()
 
 
@@ -52,5 +56,7 @@ async def health_check() -> HealthResponse:
 
 # Import and include routers
 from app.routes import tasks_router
+from app.chatkit import chatkit_router
 
 app.include_router(tasks_router, prefix="/api/v1")
+app.include_router(chatkit_router)
