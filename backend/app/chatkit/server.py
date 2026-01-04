@@ -59,6 +59,7 @@ async def stream_agent_response(
     """Stream agent response as Server-Sent Events.
 
     Persists both user message and assistant response to database.
+    Passes conversation history to the agent for context.
 
     Args:
         message: User's chat message
@@ -70,18 +71,37 @@ async def stream_agent_response(
     """
     user_id = context.user_id
     conv_id = None
+    conversation_history = []
 
     try:
-        # Get or create conversation and save user message
+        # Get or create conversation, fetch history, and save user message
         async with async_session() as session:
             conversation = await get_or_create_conversation(
                 session, user_id, conversation_id
             )
             conv_id = conversation.id
 
+            # Fetch previous messages for context (before saving current message)
+            previous_messages = await get_conversation_messages(
+                session, user_id, conv_id, limit=20
+            )
+
+            # Convert to format expected by OpenAI Agents SDK
+            for msg in previous_messages:
+                conversation_history.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+
             # Save user message
             await save_message(session, conv_id, user_id, "user", message)
             await session.commit()
+
+        # Add current message to history
+        conversation_history.append({
+            "role": "user",
+            "content": message
+        })
 
         # Send conversation_id in first event
         yield f"data: {json.dumps({'type': 'conversation', 'conversation_id': conv_id})}\n\n"
@@ -98,10 +118,10 @@ async def stream_agent_response(
                 mcp_servers=[server],
             )
 
-            # Run the agent with streaming
+            # Run the agent with streaming, passing full conversation history
             result = Runner.run_streamed(
                 agent,
-                message,
+                conversation_history,
             )
 
             full_response = ""
@@ -235,18 +255,37 @@ async def chatkit_simple_endpoint(
     context = get_context_from_request(request)
     user_id = context.user_id
     conv_id = None
+    conversation_history = []
 
     try:
-        # Get or create conversation and save user message
+        # Get or create conversation, fetch history, and save user message
         async with async_session() as session:
             conversation = await get_or_create_conversation(
                 session, user_id, chat_message.conversation_id
             )
             conv_id = conversation.id
 
+            # Fetch previous messages for context
+            previous_messages = await get_conversation_messages(
+                session, user_id, conv_id, limit=20
+            )
+
+            # Convert to format expected by OpenAI Agents SDK
+            for msg in previous_messages:
+                conversation_history.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+
             # Save user message
             await save_message(session, conv_id, user_id, "user", chat_message.message)
             await session.commit()
+
+        # Add current message to history
+        conversation_history.append({
+            "role": "user",
+            "content": chat_message.message
+        })
 
         # Create MCP server connection
         mcp_server = get_mcp_server()
@@ -261,7 +300,7 @@ async def chatkit_simple_endpoint(
 
             result = await Runner.run(
                 agent,
-                chat_message.message,
+                conversation_history,
             )
 
             response_text = result.final_output

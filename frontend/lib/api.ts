@@ -25,13 +25,32 @@ export async function apiFetch<T>(
   // Inject Bearer token if auth is required
   if (requireAuth) {
     try {
-      const { data, error } = await authClient.token();
-      if (error) {
-        throw new Error("Failed to get auth token");
+      // Retry token fetch with increasing delay to handle race condition on login
+      const maxRetries = 5;
+      const baseDelayMs = 150;
+      let tokenData = null;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const { data, error } = await authClient.token();
+
+        if (data?.token) {
+          tokenData = data.token;
+          break;
+        }
+
+        // If we still have retries, wait with increasing delay
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, baseDelayMs * (attempt + 1)));
+        } else if (error) {
+          throw new Error("Failed to get auth token after retries");
+        }
       }
-      if (data?.token) {
+
+      if (tokenData) {
         (requestHeaders as Record<string, string>)["Authorization"] =
-          `Bearer ${data.token}`;
+          `Bearer ${tokenData}`;
+      } else {
+        throw new Error("No token available");
       }
     } catch {
       throw new Error("Authentication required");
