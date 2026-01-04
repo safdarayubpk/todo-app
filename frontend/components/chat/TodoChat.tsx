@@ -30,6 +30,7 @@ export function TodoChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -119,7 +120,10 @@ export function TodoChat() {
           'Authorization': `Bearer ${clientSecret}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageText.trim() }),
+        body: JSON.stringify({
+          message: messageText.trim(),
+          conversation_id: conversationId,  // Send conversation_id to maintain context
+        }),
       });
 
       if (!response.ok) {
@@ -143,7 +147,10 @@ export function TodoChat() {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.type === 'delta' && data.content) {
+              if (data.type === 'conversation' && data.conversation_id) {
+                // Store conversation_id for subsequent messages
+                setConversationId(data.conversation_id);
+              } else if (data.type === 'delta' && data.content) {
                 fullContent += data.content;
                 setMessages(prev =>
                   prev.map(msg =>
@@ -153,7 +160,10 @@ export function TodoChat() {
                   )
                 );
               } else if (data.type === 'done') {
-                // Stream complete
+                // Stream complete - also capture conversation_id if present
+                if (data.conversation_id) {
+                  setConversationId(data.conversation_id);
+                }
                 setMessages(prev =>
                   prev.map(msg =>
                     msg.id === assistantId
@@ -201,7 +211,7 @@ export function TodoChat() {
       setIsLoading(false);
       inputRef.current?.focus();
     }
-  }, [clientSecret, isLoading]);
+  }, [clientSecret, isLoading, conversationId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
