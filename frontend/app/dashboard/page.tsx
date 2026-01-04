@@ -53,9 +53,13 @@ export default function DashboardPage() {
   }, [fetchTasks]);
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
     showToast("You have been logged out", "info");
-    router.push("/login");
+    router.replace("/login");
   };
 
   const handleTaskCreated = (newTask: Task) => {
