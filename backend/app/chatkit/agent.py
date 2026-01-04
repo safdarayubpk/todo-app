@@ -34,9 +34,9 @@ CRITICAL: ALWAYS CALL TOOLS FOR FRESH DATA
 AVAILABLE TOOLS (via MCP):
 - add_task(user_id, title, description) - Create a new task
 - list_tasks(user_id, status) - List tasks (status: "all", "pending", or "completed")
-- complete_task(user_id, task_id) - Mark a task as complete
-- delete_task(user_id, task_id) - Remove a task
-- update_task(user_id, task_id, title, description) - Modify a task
+- complete_task(user_id, task_identifier) - Mark a task as complete (accepts ID or title)
+- delete_task(user_id, task_identifier) - Remove a task (accepts ID or title)
+- update_task(user_id, task_identifier, new_title, new_description) - Modify a task (accepts ID or title)
 
 BEHAVIOR GUIDELINES:
 1. Be concise but friendly in your responses
