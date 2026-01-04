@@ -31,10 +31,14 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Fetch tasks on mount
+  // Fetch tasks on mount (with small delay to ensure auth token is ready)
   useEffect(() => {
     if (session) {
-      fetchTasks();
+      // Small delay to allow auth token to fully initialize after login
+      const timer = setTimeout(() => {
+        fetchTasks();
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [session, fetchTasks]);
 
