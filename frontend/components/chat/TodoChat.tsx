@@ -39,32 +39,56 @@ export function TodoChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Get client secret on mount
+  // Get client secret on mount with retry logic for race conditions after login
   useEffect(() => {
-    async function initSession() {
-      try {
-        const res = await fetch('/api/chatkit/session', {
-          method: 'POST',
-          credentials: 'include',
-        });
+    let isMounted = true;
 
-        if (!res.ok) {
-          if (res.status === 401) {
-            router.push('/login');
-            return;
+    async function initSession(retries = 5, delayMs = 200) {
+      for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+          const res = await fetch('/api/chatkit/session', {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          if (!res.ok) {
+            if (res.status === 401) {
+              router.push('/login');
+              return;
+            }
+            // For 503 (service unavailable), retry
+            if (res.status === 503 && attempt < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+              continue;
+            }
+            throw new Error('Failed to create session');
           }
-          throw new Error('Failed to create session');
-        }
 
-        const data = await res.json();
-        setClientSecret(data.client_secret);
-      } catch (err) {
-        console.error('Session error:', err);
-        setError('Failed to connect to chat service');
+          const data = await res.json();
+          if (isMounted) {
+            setClientSecret(data.client_secret);
+            setError(null);
+          }
+          return; // Success, exit
+        } catch (err) {
+          console.error(`Session attempt ${attempt + 1} failed:`, err);
+          // Retry on network errors
+          if (attempt < retries - 1) {
+            await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+            continue;
+          }
+          if (isMounted) {
+            setError('Failed to connect to chat service. Please refresh the page.');
+          }
+        }
       }
     }
 
     initSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const sendMessage = useCallback(async (messageText: string) => {

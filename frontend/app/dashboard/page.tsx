@@ -31,13 +31,14 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Fetch tasks on mount (with small delay to ensure auth token is ready)
+  // Fetch tasks on mount (with delay to ensure auth token is ready after login)
   useEffect(() => {
     if (session) {
-      // Small delay to allow auth token to fully initialize after login
+      // Delay to allow auth token to fully initialize after login
+      // The apiFetch function has its own retry logic, but initial delay helps
       const timer = setTimeout(() => {
         fetchTasks();
-      }, 50);
+      }, 100);
       return () => clearTimeout(timer);
     }
   }, [session, fetchTasks]);
