@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 # Copy all application code first
 COPY . .
 
-# Install Python dependencies directly from pyproject.toml
+# Install Python dependencies from pyproject.toml
 RUN pip install --no-cache-dir \
     "fastapi>=0.115.0" \
     "uvicorn[standard]>=0.30.0" \
@@ -24,7 +24,10 @@ RUN pip install --no-cache-dir \
     "passlib[bcrypt]>=1.7.4" \
     "httpx>=0.27.0" \
     "python-dotenv>=1.0.0" \
-    "greenlet>=3.0.0"
+    "greenlet>=3.0.0" \
+    "openai-agents>=0.6.4" \
+    "mcp>=1.25.0" \
+    "psycopg2-binary>=2.9.11"
 
 # Expose Hugging Face default port
 EXPOSE 7860
