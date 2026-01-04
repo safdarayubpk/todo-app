@@ -76,3 +76,6 @@ next-env.d.ts
 
 # TypeScript
 *.tsbuildinfo
+
+# Playwright MCP
+.playwright-mcp/
