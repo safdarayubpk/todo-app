@@ -35,6 +35,11 @@ engine = create_engine(
     clean_url,
     echo=False,  # Set to True for debugging
     connect_args={"sslmode": "require"},
+    # Connection pool settings for Neon PostgreSQL (serverless)
+    pool_pre_ping=True,  # Test connection before using
+    pool_recycle=280,  # Recycle connections before Neon timeout
+    pool_size=3,  # Smaller pool for subprocess
+    max_overflow=5,
 )
 
 # Synchronous session factory

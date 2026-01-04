@@ -85,11 +85,26 @@ def get_system_prompt(user_id: str) -> str:
 
 def get_mcp_server() -> MCPServerStdio:
     """Create MCPServerStdio connection to Todo MCP Server."""
+    import os
+    import shutil
+
+    # Check if we're in a containerized environment (HuggingFace Spaces)
+    # where uv might not be available
+    use_uv = shutil.which("uv") is not None
+
+    if use_uv:
+        command = "uv"
+        args = ["run", "python", "-m", "app.mcp_server.server"]
+    else:
+        # Fall back to direct python execution
+        command = "python"
+        args = ["-m", "app.mcp_server.server"]
+
     return MCPServerStdio(
         name="Todo MCP Server",
         params={
-            "command": "uv",
-            "args": ["run", "python", "-m", "app.mcp_server.server"],
+            "command": command,
+            "args": args,
         },
         # Increase timeout for Neon PostgreSQL cold start (default is 5s)
         client_session_timeout_seconds=30,

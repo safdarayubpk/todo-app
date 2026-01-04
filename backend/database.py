@@ -29,6 +29,12 @@ engine = create_async_engine(
     echo=True,
     future=True,
     connect_args={"ssl": "require"},
+    # Connection pool settings for Neon PostgreSQL (serverless)
+    # Neon closes idle connections after ~5 minutes
+    pool_pre_ping=True,  # Test connection before using (handles closed connections)
+    pool_recycle=280,  # Recycle connections every ~4.5 minutes (before Neon timeout)
+    pool_size=5,  # Maintain 5 connections in pool
+    max_overflow=10,  # Allow up to 10 additional connections under load
 )
 
 async_session = async_sessionmaker(
