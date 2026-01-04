@@ -60,6 +60,7 @@ def add_task(user_id: str, title: str, description: str | None = None) -> dict:
             session.add(task)
             session.flush()  # Get the ID
             session.refresh(task)
+            session.commit()  # Commit the transaction
 
             return {
                 "task_id": task.id,
@@ -140,6 +141,7 @@ def complete_task(user_id: str, task_id: int) -> dict:
             task.updated_at = utc_now()
             session.flush()
             session.refresh(task)
+            session.commit()  # Commit the transaction
 
             return {
                 "task_id": task.id,
@@ -179,6 +181,8 @@ def delete_task(user_id: str, task_id: int) -> dict:
             title = task.title
             task_id_deleted = task.id
             session.delete(task)
+            session.flush()  # Execute DELETE SQL
+            session.commit()  # Commit the transaction
 
             return {
                 "task_id": task_id_deleted,
@@ -243,6 +247,7 @@ def update_task(
             task.updated_at = utc_now()
             session.flush()
             session.refresh(task)
+            session.commit()  # Commit the transaction
 
             return {
                 "task_id": task.id,
