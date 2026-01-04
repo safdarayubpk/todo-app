@@ -100,11 +100,16 @@ def get_mcp_server() -> MCPServerStdio:
         command = "python"
         args = ["-m", "app.mcp_server.server"]
 
+    # Pass environment variables to subprocess (required for HuggingFace Spaces)
+    # The subprocess needs DATABASE_URL and other env vars
+    env = os.environ.copy()
+
     return MCPServerStdio(
         name="Todo MCP Server",
         params={
             "command": command,
             "args": args,
+            "env": env,
         },
         # Increase timeout for Neon PostgreSQL cold start (default is 5s)
         client_session_timeout_seconds=30,
