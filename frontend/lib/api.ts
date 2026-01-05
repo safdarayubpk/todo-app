@@ -75,11 +75,66 @@ export async function apiFetch<T>(
   return response.json();
 }
 
+// Priority type
+export type PriorityLevel = "high" | "medium" | "low";
+
+// Filter state for task list
+export interface FilterState {
+  status: "all" | "pending" | "completed";
+  priority: "all" | PriorityLevel;
+  tags: string[];
+  search: string;
+  sortBy: "created_at" | "priority" | "title";
+  sortDir: "asc" | "desc";
+}
+
+// Default filter state
+export const defaultFilters: FilterState = {
+  status: "all",
+  priority: "all",
+  tags: [],
+  search: "",
+  sortBy: "created_at",
+  sortDir: "desc",
+};
+
+/**
+ * Build query string from filter state
+ */
+function buildFilterQuery(filters?: Partial<FilterState>): string {
+  if (!filters) return "";
+
+  const params = new URLSearchParams();
+
+  if (filters.status && filters.status !== "all") {
+    params.append("status", filters.status);
+  }
+  if (filters.priority && filters.priority !== "all") {
+    params.append("priority", filters.priority);
+  }
+  if (filters.tags && filters.tags.length > 0) {
+    filters.tags.forEach((tag) => params.append("tags", tag));
+  }
+  if (filters.search && filters.search.trim()) {
+    params.append("search", filters.search.trim());
+  }
+  if (filters.sortBy && filters.sortBy !== "created_at") {
+    params.append("sort_by", filters.sortBy);
+  }
+  if (filters.sortDir && filters.sortDir !== "desc") {
+    params.append("sort_dir", filters.sortDir);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
 /**
  * Task API methods
  */
 export const taskApi = {
-  list: () => apiFetch<Task[]>("/tasks"),
+  list: (filters?: Partial<FilterState>) =>
+    apiFetch<Task[]>(`/tasks${buildFilterQuery(filters)}`),
 
   get: (id: number) => apiFetch<Task>(`/tasks/${id}`),
 
@@ -104,6 +159,16 @@ export const taskApi = {
     apiFetch<Task>(`/tasks/${id}/toggle`, {
       method: "PATCH",
     }),
+
+  addTag: (id: number, tag: string) =>
+    apiFetch<Task>(`/tasks/${id}/tags?tag=${encodeURIComponent(tag)}`, {
+      method: "POST",
+    }),
+
+  removeTag: (id: number, tag: string) =>
+    apiFetch<Task>(`/tasks/${id}/tags?tag=${encodeURIComponent(tag)}`, {
+      method: "DELETE",
+    }),
 };
 
 // Types matching backend schemas
@@ -112,7 +177,9 @@ export interface Task {
   title: string;
   description: string | null;
   is_completed: boolean;
-  user_id: number;
+  priority: PriorityLevel;
+  tags: string[];
+  user_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -121,10 +188,14 @@ export interface TaskCreate {
   title: string;
   description?: string | null;
   is_completed?: boolean;
+  priority?: PriorityLevel;
+  tags?: string[];
 }
 
 export interface TaskUpdate {
   title?: string | null;
   description?: string | null;
   is_completed?: boolean | null;
+  priority?: PriorityLevel | null;
+  tags?: string[] | null;
 }

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/Button";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { TaskList } from "@/components/tasks/TaskList";
-import { taskApi, Task } from "@/lib/api";
+import { taskApi, Task, FilterState, defaultFilters } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 
 export default function DashboardPage() {
@@ -17,19 +17,31 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
-  // Fetch tasks function
+  // Check if there are active filters
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.status !== "all" ||
+      filters.priority !== "all" ||
+      filters.tags.length > 0 ||
+      filters.search.trim() !== "" ||
+      filters.sortBy !== "created_at"
+    );
+  }, [filters]);
+
+  // Fetch tasks function with filters
   const fetchTasks = useCallback(async () => {
     try {
       setIsLoadingTasks(true);
-      const data = await taskApi.list();
+      const data = await taskApi.list(filters);
       setTasks(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load tasks");
     } finally {
       setIsLoadingTasks(false);
     }
-  }, []);
+  }, [filters]);
 
   // Fetch tasks on mount (with delay to ensure auth token is ready after login)
   useEffect(() => {
@@ -78,6 +90,11 @@ export default function DashboardPage() {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
     showToast("Task deleted", "success");
   };
+
+  // Handle filter changes - immediately fetch with new filters
+  const handleFilterChange = useCallback((newFilters: Partial<FilterState>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+  }, []);
 
   if (isPending) {
     return (
@@ -143,6 +160,9 @@ export default function DashboardPage() {
           isLoading={isLoadingTasks}
           onTaskUpdated={handleTaskUpdated}
           onTaskDeleted={handleTaskDeleted}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          hasActiveFilters={hasActiveFilters}
         />
       </div>
     </main>

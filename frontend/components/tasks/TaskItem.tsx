@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
-import { Task, taskApi } from "@/lib/api";
+import { Task, taskApi, PriorityLevel } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { PriorityBadge } from "@/components/ui/PriorityBadge";
+import { TagList } from "@/components/ui/TagChip";
+import { TagInput } from "@/components/ui/TagInput";
 
 interface TaskItemProps {
   task: Task;
@@ -20,6 +23,8 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDescription, setEditDescription] = useState(task.description || "");
+  const [editPriority, setEditPriority] = useState<PriorityLevel>(task.priority);
+  const [editTags, setEditTags] = useState<string[]>(task.tags || []);
   const [editError, setEditError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -62,6 +67,8 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
       const updatedTask = await taskApi.update(task.id, {
         title: editTitle.trim(),
         description: editDescription.trim() || null,
+        priority: editPriority,
+        tags: editTags,
       });
       onTaskUpdated(updatedTask);
       setShowEditModal(false);
@@ -75,6 +82,8 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
   const openEditModal = () => {
     setEditTitle(task.title);
     setEditDescription(task.description || "");
+    setEditPriority(task.priority);
+    setEditTags(task.tags || []);
     setEditError("");
     setShowEditModal(true);
   };
@@ -112,14 +121,17 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
 
         {/* Task content */}
         <div className="flex-1 min-w-0">
-          <h3
-            className={`
-              font-medium break-words
-              ${task.is_completed ? "line-through text-[var(--secondary)]" : ""}
-            `}
-          >
-            {task.title}
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3
+              className={`
+                font-medium break-words
+                ${task.is_completed ? "line-through text-[var(--secondary)]" : ""}
+              `}
+            >
+              {task.title}
+            </h3>
+            <PriorityBadge priority={task.priority} size="sm" />
+          </div>
           {task.description && (
             <p
               className={`
@@ -133,6 +145,11 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
             >
               {task.description}
             </p>
+          )}
+          {task.tags && task.tags.length > 0 && (
+            <div className="mt-2">
+              <TagList tags={task.tags} maxDisplay={5} />
+            </div>
           )}
         </div>
 
@@ -177,6 +194,22 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-[var(--foreground)]">
+              Priority
+            </label>
+            <select
+              value={editPriority}
+              onChange={(e) => setEditPriority(e.target.value as PriorityLevel)}
+              disabled={isSaving}
+              className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--border)] text-[var(--foreground)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-[var(--foreground)]">
               Description
             </label>
             <textarea
@@ -185,6 +218,18 @@ export function TaskItem({ task, onTaskUpdated, onTaskDeleted }: TaskItemProps) 
               disabled={isSaving}
               rows={3}
               className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--border)] text-[var(--foreground)] placeholder-[var(--secondary)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-[var(--foreground)]">
+              Tags
+            </label>
+            <TagInput
+              tags={editTags}
+              onChange={setEditTags}
+              placeholder="Add tags..."
+              disabled={isSaving}
             />
           </div>
 
