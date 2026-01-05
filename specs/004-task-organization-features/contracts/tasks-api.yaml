@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: Tasks API - Organization Features Extension
+  version: 1.1.0
+  description: |
+    Extended Tasks API with priority, tags, filtering, search, and sorting capabilities.
+    All endpoints require JWT Bearer authentication.
+
+servers:
+  - url: /api/v1
+    description: API base path
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PriorityLevel:
+      type: string
+      enum: [high, medium, low]
+      default: medium
+      description: Task priority level
+
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - is_completed
+        - priority
+        - tags
+        - user_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: Unique task identifier
+          example: 42
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Task title
+          example: "Buy groceries"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Optional task description
+          example: "Milk, bread, eggs"
+        is_completed:
+          type: boolean
+          description: Task completion status
+          example: false
+        priority:
+          $ref: '#/components/schemas/PriorityLevel'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+          description: Task tags (normalized to lowercase)
+          example: ["work", "urgent"]
+        user_id:
+          type: string
+          description: Owner user ID (Better Auth)
+          example: "abc123"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2026-01-05T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2026-01-05T10:30:00Z"
+
+    TaskCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Task title
+          example: "Buy groceries"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Optional task description
+          example: "Milk, bread, eggs"
+        is_completed:
+          type: boolean
+          default: false
+          description: Initial completion status
+        priority:
+          $ref: '#/components/schemas/PriorityLevel'
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+          default: []
+          description: Task tags (will be normalized to lowercase)
+          example: ["work", "urgent"]
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          nullable: true
+          description: Updated title
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Updated description
+        is_completed:
+          type: boolean
+          nullable: true
+          description: Updated completion status
+        priority:
+          allOf:
+            - $ref: '#/components/schemas/PriorityLevel'
+          nullable: true
+          description: Updated priority
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+          nullable: true
+          description: Updated tags (replaces existing tags)
+
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Task not found"
+
+  parameters:
+    StatusFilter:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [all, pending, completed]
+        default: all
+      description: Filter by completion status
+
+    PriorityFilter:
+      name: priority
+      in: query
+      schema:
+        $ref: '#/components/schemas/PriorityLevel'
+      description: Filter by priority level (exact match)
+
+    TagsFilter:
+      name: tags
+      in: query
+      schema:
+        type: array
+        items:
+          type: string
+      style: form
+      explode: true
+      description: Filter by tags (AND logic - task must have ALL specified tags)
+
+    SearchQuery:
+      name: search
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+      description: Search keyword (matches title or description, case-insensitive)
+
+    SortBy:
+      name: sort_by
+      in: query
+      schema:
+        type: string
+        enum: [created_at, priority, title]
+        default: created_at
+      description: Field to sort by
+
+    SortDir:
+      name: sort_dir
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+      description: Sort direction
+
+paths:
+  /tasks:
+    get:
+      operationId: listTasks
+      summary: List tasks with filtering, search, and sorting
+      description: |
+        Returns all tasks for the authenticated user with optional filtering,
+        search, and sorting. All filters combine with AND logic.
+      parameters:
+        - $ref: '#/components/parameters/StatusFilter'
+        - $ref: '#/components/parameters/PriorityFilter'
+        - $ref: '#/components/parameters/TagsFilter'
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortDir'
+      responses:
+        '200':
+          description: List of tasks matching criteria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+              examples:
+                filtered:
+                  summary: High priority work tasks
+                  value:
+                    - id: 42
+                      title: "Finish report"
+                      description: "Q4 sales report"
+                      is_completed: false
+                      priority: "high"
+                      tags: ["work", "urgent"]
+                      user_id: "abc123"
+                      created_at: "2026-01-05T10:30:00Z"
+                      updated_at: "2026-01-05T10:30:00Z"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      operationId: createTask
+      summary: Create a new task
+      description: Creates a new task with optional priority and tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+            examples:
+              withOrganization:
+                summary: Task with priority and tags
+                value:
+                  title: "Review PR"
+                  description: "Review the new feature PR"
+                  priority: "high"
+                  tags: ["work", "code-review"]
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '422':
+          description: Validation error
+
+  /tasks/{task_id}:
+    parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+
+    get:
+      operationId: getTask
+      summary: Get a specific task
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+
+    put:
+      operationId: updateTask
+      summary: Update a task
+      description: Updates task fields including priority and tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+            examples:
+              updatePriorityAndTags:
+                summary: Update priority and add tags
+                value:
+                  priority: "medium"
+                  tags: ["personal", "shopping"]
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+
+    delete:
+      operationId: deleteTask
+      summary: Delete a task
+      responses:
+        '204':
+          description: Task deleted
+        '404':
+          description: Task not found
+
+  /tasks/{task_id}/toggle:
+    parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      operationId: toggleTask
+      summary: Toggle task completion status
+      responses:
+        '200':
+          description: Task toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+
+  /tasks/{task_id}/tags:
+    parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+
+    post:
+      operationId: addTag
+      summary: Add a tag to a task
+      description: Adds a single tag without removing existing tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag
+              properties:
+                tag:
+                  type: string
+                  maxLength: 50
+                  example: "urgent"
+      responses:
+        '200':
+          description: Tag added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+
+    delete:
+      operationId: removeTag
+      summary: Remove a tag from a task
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Tag to remove
+      responses:
+        '200':
+          description: Tag removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found

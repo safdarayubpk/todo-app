@@ -1,8 +1,10 @@
 """SQLModel database models for Task entity."""
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Literal
 
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import SQLModel, Field
 
 
@@ -11,8 +13,12 @@ def utc_now() -> datetime:
     return datetime.utcnow()
 
 
+# Type alias for priority levels
+PriorityLevel = Literal["high", "medium", "low"]
+
+
 class Task(SQLModel, table=True):
-    """Task database model."""
+    """Task database model with organization features."""
 
     __tablename__ = "tasks"
 
@@ -30,6 +36,16 @@ class Task(SQLModel, table=True):
     is_completed: bool = Field(
         default=False,
         description="Completion status",
+    )
+    priority: str = Field(
+        default="medium",
+        max_length=10,
+        description="Priority level: high, medium, or low",
+    )
+    tags: list[str] = Field(
+        default=[],
+        sa_column=Column(ARRAY(String), nullable=False, server_default="{}"),
+        description="Array of tag strings for categorization",
     )
     # Use string user_id to match Better Auth's user IDs
     user_id: str = Field(

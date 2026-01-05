@@ -216,6 +216,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 - Neon PostgreSQL (serverless, async via asyncpg) (002-fullstack-web-app)
 - Python 3.11+ (backend), TypeScript 5.x (frontend) + FastAPI, OpenAI Agents SDK, Official MCP SDK (FastMCP), SQLModel, Next.js 15 (003-ai-todo-chatbot)
 - Neon PostgreSQL (existing tasks table + new conversations/messages tables) (003-ai-todo-chatbot)
+- Python 3.11+ (backend), TypeScript 5.x (frontend) + FastAPI, SQLModel, Next.js 15, React, OpenAI Agents SDK, MCP SDK (004-task-organization-features)
+- Neon PostgreSQL (extend existing tasks table with priority and tags columns) (004-task-organization-features)
 
 ## Recent Changes
 - 001-console-todo-app: Added Python 3.13+ (managed with UV) + None (pure standard library: dataclasses, typing)
