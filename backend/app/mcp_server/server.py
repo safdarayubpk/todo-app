@@ -7,6 +7,7 @@ delete_task, and update_task.
 Each tool requires user_id as the first parameter to enforce data isolation.
 """
 
+import re
 from mcp.server.fastmcp import FastMCP
 from sqlmodel import select
 
@@ -22,6 +23,53 @@ from app.mcp_server.db import get_sync_session
 
 # Initialize MCP Server
 mcp = FastMCP("Todo MCP Server")
+
+
+def parse_task_identifier(identifier: str) -> tuple[int | None, str]:
+    """Parse a task identifier to extract ID and/or title.
+
+    Handles formats like:
+    - "39" → (39, "39")
+    - "visit" → (None, "visit")
+    - "visit (ID: 39)" → (39, "visit")
+    - "(ID: 39)" → (39, "")
+    - "ID: 39" → (39, "")
+    - "task 39" → (39, "task")
+
+    Returns:
+        Tuple of (extracted_id or None, cleaned_title)
+    """
+    identifier = identifier.strip()
+
+    # Pattern 1: "(ID: X)" or "(ID:X)" anywhere in string
+    id_pattern = r'\(ID:\s*(\d+)\)'
+    match = re.search(id_pattern, identifier, re.IGNORECASE)
+    if match:
+        task_id = int(match.group(1))
+        # Remove the ID part to get the title
+        title = re.sub(id_pattern, '', identifier, flags=re.IGNORECASE).strip()
+        return (task_id, title)
+
+    # Pattern 2: "ID: X" or "ID:X" at start or end
+    id_pattern2 = r'(?:^|\s)ID:\s*(\d+)(?:\s|$)'
+    match = re.search(id_pattern2, identifier, re.IGNORECASE)
+    if match:
+        task_id = int(match.group(1))
+        title = re.sub(id_pattern2, ' ', identifier, flags=re.IGNORECASE).strip()
+        return (task_id, title)
+
+    # Pattern 3: Just a number
+    if identifier.isdigit():
+        return (int(identifier), identifier)
+
+    # Pattern 4: "task X" where X is a number
+    task_num_pattern = r'^task\s+(\d+)$'
+    match = re.search(task_num_pattern, identifier, re.IGNORECASE)
+    if match:
+        return (int(match.group(1)), "")
+
+    # No ID found, return as title
+    return (None, identifier)
 
 
 @mcp.tool()
@@ -118,6 +166,7 @@ def complete_task(user_id: str, task_identifier: str) -> dict:
     Args:
         user_id: The authenticated user's ID (required for isolation)
         task_identifier: Task ID (number) OR task title (partial match supported)
+                        Accepts formats: "39", "visit", "visit (ID: 39)", "ID: 39"
 
     Returns:
         Dict with task_id, status, and title of the completed task
@@ -128,27 +177,27 @@ def complete_task(user_id: str, task_identifier: str) -> dict:
     if not task_identifier or len(str(task_identifier).strip()) == 0:
         return {"error": "task_identifier is required (task ID or title)"}
 
-    task_identifier = str(task_identifier).strip()
+    # Parse the identifier to extract ID and/or title
+    parsed_id, parsed_title = parse_task_identifier(str(task_identifier))
 
     try:
         with get_sync_session() as session:
             task = None
 
-            # Try to parse as integer task ID first
-            if task_identifier.isdigit():
-                task_id = int(task_identifier)
+            # Try to find by extracted ID first
+            if parsed_id is not None:
                 statement = select(Task).where(
-                    Task.id == task_id,
+                    Task.id == parsed_id,
                     Task.user_id == user_id.strip()
                 )
                 result = session.execute(statement)
                 task = result.scalar_one_or_none()
 
-            # If not found by ID, search by title (case-insensitive)
-            if task is None:
+            # If not found by ID and we have a title, search by title
+            if task is None and parsed_title:
                 statement = select(Task).where(
                     Task.user_id == user_id.strip(),
-                    Task.title.ilike(f"%{task_identifier}%")
+                    Task.title.ilike(f"%{parsed_title}%")
                 )
                 result = session.execute(statement)
                 matches = list(result.scalars().all())
@@ -162,6 +211,8 @@ def complete_task(user_id: str, task_identifier: str) -> dict:
                         "error": f"Multiple tasks match '{task_identifier}'. Please be more specific.",
                         "matches": [{"id": t.id, "title": t.title} for t in matches]
                     }
+            elif task is None:
+                return {"error": f"No task found matching '{task_identifier}'"}
 
             task.is_completed = True
             task.updated_at = utc_now()
@@ -185,6 +236,7 @@ def delete_task(user_id: str, task_identifier: str) -> dict:
     Args:
         user_id: The authenticated user's ID (required for isolation)
         task_identifier: Task ID (number) OR task title (partial match supported)
+                        Accepts formats: "39", "visit", "visit (ID: 39)", "ID: 39"
 
     Returns:
         Dict with task_id, status, and title of the deleted task
@@ -195,27 +247,27 @@ def delete_task(user_id: str, task_identifier: str) -> dict:
     if not task_identifier or len(str(task_identifier).strip()) == 0:
         return {"error": "task_identifier is required (task ID or title)"}
 
-    task_identifier = str(task_identifier).strip()
+    # Parse the identifier to extract ID and/or title
+    parsed_id, parsed_title = parse_task_identifier(str(task_identifier))
 
     try:
         with get_sync_session() as session:
             task = None
 
-            # Try to parse as integer task ID first
-            if task_identifier.isdigit():
-                task_id = int(task_identifier)
+            # Try to find by extracted ID first
+            if parsed_id is not None:
                 statement = select(Task).where(
-                    Task.id == task_id,
+                    Task.id == parsed_id,
                     Task.user_id == user_id.strip()
                 )
                 result = session.execute(statement)
                 task = result.scalar_one_or_none()
 
-            # If not found by ID, search by title (case-insensitive)
-            if task is None:
+            # If not found by ID and we have a title, search by title
+            if task is None and parsed_title:
                 statement = select(Task).where(
                     Task.user_id == user_id.strip(),
-                    Task.title.ilike(f"%{task_identifier}%")
+                    Task.title.ilike(f"%{parsed_title}%")
                 )
                 result = session.execute(statement)
                 matches = list(result.scalars().all())
@@ -225,11 +277,12 @@ def delete_task(user_id: str, task_identifier: str) -> dict:
                 elif len(matches) == 1:
                     task = matches[0]
                 else:
-                    # Multiple matches - return them for clarification
                     return {
                         "error": f"Multiple tasks match '{task_identifier}'. Please be more specific.",
                         "matches": [{"id": t.id, "title": t.title} for t in matches]
                     }
+            elif task is None:
+                return {"error": f"No task found matching '{task_identifier}'"}
 
             title = task.title
             task_id_deleted = task.id
@@ -258,6 +311,7 @@ def update_task(
     Args:
         user_id: The authenticated user's ID (required for isolation)
         task_identifier: Task ID (number) OR task title (partial match supported)
+                        Accepts formats: "39", "visit", "visit (ID: 39)", "ID: 39"
         new_title: New title for the task (optional)
         new_description: New description for the task (optional)
 
@@ -283,27 +337,27 @@ def update_task(
     if new_description is not None and len(new_description) > 1000:
         return {"error": "Description must be 1000 characters or less"}
 
-    task_identifier = str(task_identifier).strip()
+    # Parse the identifier to extract ID and/or title
+    parsed_id, parsed_title = parse_task_identifier(str(task_identifier))
 
     try:
         with get_sync_session() as session:
             task = None
 
-            # Try to parse as integer task ID first
-            if task_identifier.isdigit():
-                task_id = int(task_identifier)
+            # Try to find by extracted ID first
+            if parsed_id is not None:
                 statement = select(Task).where(
-                    Task.id == task_id,
+                    Task.id == parsed_id,
                     Task.user_id == user_id.strip()
                 )
                 result = session.execute(statement)
                 task = result.scalar_one_or_none()
 
-            # If not found by ID, search by title (case-insensitive)
-            if task is None:
+            # If not found by ID and we have a title, search by title
+            if task is None and parsed_title:
                 statement = select(Task).where(
                     Task.user_id == user_id.strip(),
-                    Task.title.ilike(f"%{task_identifier}%")
+                    Task.title.ilike(f"%{parsed_title}%")
                 )
                 result = session.execute(statement)
                 matches = list(result.scalars().all())
@@ -317,6 +371,8 @@ def update_task(
                         "error": f"Multiple tasks match '{task_identifier}'. Please be more specific.",
                         "matches": [{"id": t.id, "title": t.title} for t in matches]
                     }
+            elif task is None:
+                return {"error": f"No task found matching '{task_identifier}'"}
 
             if new_title is not None:
                 task.title = new_title
