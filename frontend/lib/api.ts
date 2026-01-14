@@ -2,7 +2,8 @@
 
 import { authClient } from "./auth-client";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+// Use relative URL for API calls - Next.js will proxy to backend via rewrites
+const API_BASE_URL = "/api/v1";
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;

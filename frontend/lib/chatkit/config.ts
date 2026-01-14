@@ -3,8 +3,8 @@
  */
 
 export const CHATKIT_CONFIG = {
-  /** Backend ChatKit endpoint URL */
-  backendUrl: process.env.NEXT_PUBLIC_CHATKIT_URL || 'http://localhost:8000/chatkit',
+  /** Backend ChatKit endpoint URL (proxied through Next.js) */
+  backendUrl: '/api/chatkit/chat',
 
   /** Theme for the chat widget */
   theme: 'light' as const,
@@ -35,5 +35,5 @@ export const CHATKIT_CONFIG = {
 /** API URL for session management */
 export const CHATKIT_SESSION_URL = '/api/chatkit/session';
 
-/** Chat backend URL for direct streaming */
-export const CHAT_API_URL = process.env.NEXT_PUBLIC_CHATKIT_URL || 'http://localhost:8000/chatkit';
+/** Chat API URL - proxied through Next.js API routes to backend */
+export const CHAT_API_URL = '/api/chatkit/chat';
