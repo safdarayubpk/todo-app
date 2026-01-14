@@ -16,8 +16,16 @@ export default function DashboardPage() {
   const { showToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.replace("/login");
+    }
+  }, [session, isPending, router]);
 
   // Check if there are active filters
   const hasActiveFilters = useMemo(() => {
@@ -33,15 +41,19 @@ export default function DashboardPage() {
   // Fetch tasks function with filters
   const fetchTasks = useCallback(async () => {
     try {
-      setIsLoadingTasks(true);
+      // Only show loading spinner for filter changes, not initial skeleton load
+      if (!isInitialLoad) {
+        setIsLoadingTasks(true);
+      }
       const data = await taskApi.list(filters);
       setTasks(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load tasks");
     } finally {
       setIsLoadingTasks(false);
+      setIsInitialLoad(false);
     }
-  }, [filters]);
+  }, [filters, isInitialLoad]);
 
   // Fetch tasks on mount (with delay to ensure auth token is ready after login)
   useEffect(() => {
@@ -55,13 +67,25 @@ export default function DashboardPage() {
     }
   }, [session, fetchTasks]);
 
-  // Listen for refresh events from chat
+  // Listen for refresh events from chat with debounce
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     const handleRefresh = () => {
-      fetchTasks();
+      // Clear any existing timeout to debounce multiple events
+      clearTimeout(timeoutId);
+
+      // Only fetch after a short delay to prevent rapid updates
+      timeoutId = setTimeout(() => {
+        fetchTasks();
+      }, 500);
     };
+
     window.addEventListener('refresh-tasks', handleRefresh);
-    return () => window.removeEventListener('refresh-tasks', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh-tasks', handleRefresh);
+      clearTimeout(timeoutId);
+    };
   }, [fetchTasks]);
 
   const handleLogout = async () => {
@@ -113,7 +137,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold">My Tasks</h1>
             {session?.user && (
               <p className="text-[var(--secondary)]">
-                Welcome back, {session.user.name || session.user.email}
+                Welcome back, {session.user.username || session.user.email}
               </p>
             )}
           </div>
@@ -157,7 +181,7 @@ export default function DashboardPage() {
         {/* Task List */}
         <TaskList
           tasks={tasks}
-          isLoading={isLoadingTasks}
+          isLoading={isInitialLoad}
           onTaskUpdated={handleTaskUpdated}
           onTaskDeleted={handleTaskDeleted}
           filters={filters}

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "todoapp.configName" . }}
+  labels:
+    {{- include "todoapp.labels" . | nindent 4 }}
+data:
+  # CORS allowed origins
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | default "*" | quote }}
+
+  # Better Auth URL (frontend URL for auth redirects)
+  BETTER_AUTH_URL: {{ .Values.config.betterAuthUrl | default (printf "http://%s:%v" (include "todoapp.frontend.serviceName" .) .Values.frontend.service.port) | quote }}
+
+  # Backend API URL for frontend to connect to
+  NEXT_PUBLIC_API_URL: {{ .Values.config.backendUrl | default (printf "http://%s:%v/api/v1" (include "todoapp.backend.serviceName" .) .Values.backend.service.port) | quote }}
+
+  # ChatKit URL for frontend to connect to
+  NEXT_PUBLIC_CHATKIT_URL: {{ .Values.config.chatkitUrl | default (printf "http://%s:%v/chatkit" (include "todoapp.backend.serviceName" .) .Values.backend.service.port) | quote }}
+
+  # Internal backend URL for server-side API proxy (Next.js rewrites)
+  BACKEND_INTERNAL_URL: {{ .Values.config.backendInternalUrl | default (printf "http://%s:%v" (include "todoapp.backend.serviceName" .) .Values.backend.service.port) | quote }}
