@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "cd frontend && npm install",
+  "framework": "nextjs",
+  "outputDirectory": "frontend/.next",
+  "env": {
+    "BACKEND_INTERNAL_URL": "https://safdarayub-todo-app-api.hf.space"
+  }
+}
